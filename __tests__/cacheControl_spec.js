@@ -9,20 +9,13 @@ import {
     KEY_SURROGATE_CONTROL
 } from '../src/headerTypes';
 
-const now = formatDate(new Date('2001-01-01'));
+let now;
+let staticHeaders;
+let lastModifiedHeader;
+
+// const now = formatDate(new Date('2001-01-01'));
 const CACHE_CONTROL_STR = 'Cache-Control';
 const SURROGATE_CONTROL_STR = 'Surrogate-Control';
-
-const staticHeaders = {
-    Expires: 0,
-    Pragma: 'no-cache',
-    'Last-Modified': now
-};
-
-// default this value, can use in Object.assign if necessary
-const lastModifiedHeader = {
-    [KEY_LAST_MODIFIED]: now
-};
 
 describe('cache control', function () {
 
@@ -34,6 +27,18 @@ describe('cache control', function () {
         expect = Object.assign({}, staticHeaders, expect);
         assert.deepEqual(actual, expect);
     }
+
+    beforeEach(() => {
+        now = formatDate(new Date('2001-01-01'));
+        staticHeaders = {
+            Expires: 0,
+            Pragma: 'no-cache',
+            'Last-Modified': now
+        };
+        lastModifiedHeader = {
+            [KEY_LAST_MODIFIED]: now
+        };
+    });
 
     it('should give all default values when no options are passed in', function () {
         const actual = generateAllCacheHeaders();
