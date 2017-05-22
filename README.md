@@ -24,16 +24,15 @@ $ npm test
 
 ## Usage
 
-### App-level middleware
+### App-level setup/override middleware
 
 ```es6
 const express = require('express');
 const app = express();
 const cache = require('cache-headers');
-const cacheOptions = {
+const pathsConfig = {
     paths: {
         '/**/generic': {
-            maxAge: 'TEN_MINUTES',
             staleRevalidate: 'ONE_HOUR',
             staleError: 'ONE_HOUR'
         },
@@ -49,16 +48,24 @@ const cacheOptions = {
 
 // some other middleware
 
-app.use(cache.middleware(cacheOptions));
+app.use(cache.setupInitialCacheHeaders(pathsConfig));
 
 // rest of app setup
 ```
 
 With the example above, the `Cache-Control` header is set as follows when a user hits these different site routes:
-- `/**/generic` (any route ending in `generic`): `Cache-Control: max-age=600, stale-while-revalidate=3600, stale-if-error=3600`
-- `/cached/route`: `Cache-Control: max-age=60`
-- `/user/route`: `Cache-Control: no-cache, max-age=0`
-- `/**` (any other route not listed): `Cache-Control: max-age=600`
+- `/**/generic` (any route ending in `generic`)
+    - `Cache-Control: no-cache, no-store, must-revalidate, stale-while-revalidate=3600, stale-if-error=3600`
+    - `Surrogate-Control: maxAge=600`
+- `/cached/route`
+    - `Cache-Control: no-cache, no-store, must-revalidate`
+    - `Surrogate-Control: maxAge=60`
+- `/user/route`
+    - `Cache-Control: private, no-cache, no-store, must-revalidate`
+    - `Surrogate-Control: maxAge=0`
+- `/**` (any other route not listed)
+    - `Cache-Control: no-cache, no-store, must-revalidate`
+    - `Surrogate-Control: maxAge=600`
 
 ### Router-level middleware
 
@@ -68,16 +75,14 @@ Taking the app-level setup above, you can additionally override the default `pat
 const express = require('express');
 const router = express.Router();
 const cache = require('cache-headers');
-const cacheOptions = {
-    cacheSettings: {
-        "maxAge": 2000
-    }
+const overrideConfig = {
+    "maxAge": 2000
 };
 
-// app.use(cache.middleware(cacheOptions)) is loaded prior to this route, therefore running by default
+// app.use(cache.setupInitialCacheHeaders(pathsConfig)) is loaded prior to this route, therefore running by default
 // and any subsequent call to set the header is then overwritten
 
-router.get('/endswith/generic', cache.middleware(cacheOptions), (req, res, next) => {
+router.get('/endswith/generic', cache.overrideCacheHeaders(overrideConfig), (req, res, next) => {
     // do route-y stuff
     next();
 });
@@ -88,19 +93,26 @@ Rather than set the original headers defined in the `paths` config in the app-le
 
 ## API
 
-### cache.middleware (all properties optional)
+### cache.setupInitialCacheHeaders()
 ```js
 {
-    cacheSettings: {
-        maxAge: number|string,
-        staleRevalidate: number|string,
-        staleError: number|string
-    },
-    paths: {
-        '/glob/**/path': object|boolean=false
-    }
+    '/glob/**/path': object|string|boolean=false
 }
 ```
+
+The following are acceptable keys to use if an object is passed in
+
+- `maxAge`: `string|number` (defaults to `TEN_MINUTES` if `setPrivate=false` and to `0` if `setPrivate=true`)
+    - can be a number or string representing a number for `maxAge` Surrogate-Control Header
+- `staleRevalidate`: `string|number`
+    - can be a number or string representing a number for `stale-while-revalidate` Cache-Control Header 
+- `staleError`
+    - can be a number or string representing a number for `stale-if-error` Cache-Control Header
+- `setPrivate`: `boolean` (defaults to `false`)
+    - `true` - `Cache-Control: private, no-cache, no-store, must-revalidate` (if set to true forces Surrogate-Control Header `maxAge=0`)
+    - `false` - `Cache-Control: no-cache, no-store, must-revalidate`
+- `lastModified`: `string` (defaults to current time) 
+    - force specific Last-Modified Header
 
 The following are acceptable values to use if a string is passed in for cache values:
 
@@ -112,7 +124,31 @@ The following are acceptable values to use if a string is passed in for cache va
 - `'ONE_MONTH'`
 - `'ONE_YEAR'`
 
-If no options are passed in, the default value set is `Cache-Control: max-age=600`
+The following are acceptable values to use if a boolean is passed in 
+
+- `false` - this is equivalent to passing `{ setPrivate: true, maxAge: 0 }` 
+
+If no options are passed in, the default value set is
+ 
+- `Cache-Control: no-cache, no-store, must-revalidate`
+- `Surrogate-Control: max-age=600`
+
+### cache.overrideCacheHeaders()
+```js
+{
+    maxAge: number|string,
+    staleRevalidate: number|string,
+    staleError: number|string,
+    setPrivate: boolean,
+    lastModified: string
+}
+```
+
+See `setupInitialCacheHeaders()` options
+
+## Recipes
+### 
+
 
 ## Contributing
 All code additions and bugfixes must be accompanied by unit tests. Tests are run with jest and

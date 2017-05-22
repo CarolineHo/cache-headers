@@ -53,44 +53,67 @@ export function setAdditionalHeaders(headers = []) {
 
 /**
  * {{@link module:cacheControl#generate}} for acceptable values
- * @memberof index
- * @param {object} [config]
- * @param {object} [config.cacheSettings=undefined] Cache settings to override the default `paths` settings
- * @param {object} [config.paths] Cache settings with glob path patterns
+ * @param {object} pathsConfig Cache settings with glob path patterns
  * @return {Function}
  */
-export function middleware(config) {
-
-    const { cacheSettings, paths } = config || {};
+export function setupInitialCacheHeaders(pathsConfig) {
+    pathsConfig = pathsConfig || {};
 
     return (req, res, next) => {
+        // current path (prefixed with a slash)
+        const pathname = slasher(url.parse(req.originalUrl).pathname);
 
-        const pathname = url.parse(req.originalUrl).pathname;
-        const cacheValues = globject(slasher(paths || {}, {value: false}));
-        let values = cacheValues(slasher(pathname));
-        let options = {};
+        /**
+         * Takes a pathname and returns the first config whose glob key matches
+         *
+         * @param pathname - pathname prefixed with slash
+         * @function
+         */
+        const getCacheConfig = globject(slasher(pathsConfig, { value: false }));
 
-        if (isValidObject(cacheSettings)) {
-            // override default cacheValue settings
-            options = cacheSettings;
-        } else if (isValidObject(values)) {
-            options = values;
-        } else if (values === false) {
+        // options by default are set to config
+        let options = getCacheConfig(pathname);
+
+        if (options === false) {
+            // current path doesn't match any glob key in pathsConfig
             options = {
                 [KEY_SURROGATE_CONTROL]: 0,
                 setPrivate: true
             };
-        } else if (isNumberLike(values)) {
+        } else if (isNumberLike(options)) {
             // catch `0` before !cacheValue check
             // make sure to convert value to actual number
             options = {
-                [KEY_SURROGATE_CONTROL]: Number(values)
+                [KEY_SURROGATE_CONTROL]: Number(options)
             };
         }
 
-        values = generateAllCacheHeaders(options);
+        setHeader(res, generateAllCacheHeaders(options));
 
-        setHeader(res, values);
+        next();
+    };
+}
+
+/**
+ *
+ * {{@link module:cacheControl#generate}} for acceptable values
+ * @param {object} overrideConfig cacheSettings to override default
+ * @returns {function(*, *=, *)}
+ */
+export function overrideCacheHeaders(overrideConfig) {
+    return (req, res, next) => {
+
+        let options = overrideConfig;
+        if (overrideConfig === false) {
+            options = {
+                [KEY_SURROGATE_CONTROL]: 0,
+                setPrivate: true
+            };
+        }
+
+        if (isValidObject(options)) {
+            setHeader(res, generateAllCacheHeaders(options));
+        }
 
         next();
     };

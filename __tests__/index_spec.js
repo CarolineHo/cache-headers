@@ -9,7 +9,7 @@
 'use strict';
 
 import * as api from '../src';
-import {NO_CACHE_NO_STORE} from '../src/cacheControl';
+import {PRIVATE_VALUE, NO_CACHE_NO_STORE} from '../src/cacheControl';
 import {
     KEY_LAST_MODIFIED,
     KEY_STALE_IF_ERROR,
@@ -27,24 +27,24 @@ const HEADER_EXPIRES = 'Expires';
 const HEADER_SURROGATE_CONTROL = 'Surrogate-Control';
 
 const caches = {
-    cacheSettings: {},
-    paths: {
-        '/**/any': {
-            [KEY_SURROGATE_CONTROL]: 3000
-        },
-        '/**/subpath': "31536000",
-        '/root/sub': {
-            [KEY_LAST_MODIFIED]: -1,
-            [KEY_SURROGATE_CONTROL]: 300,
-            [KEY_STALE_WHILE_REVALIDATE]: 400,
-            [KEY_STALE_IF_ERROR]: 600
-        },
-        '/root/**': false,
-        '/root': 1024,
-        '/obj': {
-            [HEADER_CACHE_CONTROL]: 'no-cache',
-            [HEADER_SURROGATE_CONTROL]: 'maxAge=10'
-        }
+    '/**/any': {
+        [KEY_SURROGATE_CONTROL]: 3000
+    },
+    '/**/subpath': "31536000",
+    '/root/sub': {
+        [KEY_LAST_MODIFIED]: -1,
+        [KEY_SURROGATE_CONTROL]: 300,
+        [KEY_STALE_WHILE_REVALIDATE]: 400,
+        [KEY_STALE_IF_ERROR]: 600
+    },
+    '/root/**': false,
+    '/root': 1024,
+    '/obj': {
+        [HEADER_CACHE_CONTROL]: 'no-cache',
+        [HEADER_SURROGATE_CONTROL]: 'maxAge=10'
+    },
+    '/**': {
+        [KEY_LAST_MODIFIED]: 42
     }
 };
 
@@ -134,7 +134,7 @@ describe('cache control index', function () {
             let app;
             beforeEach(() => {
                 app = express();
-                app.use(api.middleware(caches));
+                app.use(api.setupInitialCacheHeaders(caches));
                 createMockRoutes(app);
                 server = createServer(app);
                 agent = request(server);
@@ -182,6 +182,48 @@ describe('cache control index', function () {
         describe('overriding default values', () => {
             let agent;
             let app;
+            it('should set private if overridden with false', done => {
+                app = express();
+                app.use(api.setupInitialCacheHeaders(caches));
+                createMockRoutes(app);
+                const overrides = false;
+                app.get('/this/is/any', api.overrideCacheHeaders(overrides), (req, res) => {
+                    res.status(200).send('ok');
+                });
+                server = createServer(app);
+                agent = request(server);
+
+                agent.get('/this/is/any')
+                    .end((err, res) => {
+                        const expectedHeaders = [
+                            {name: HEADER_CACHE_CONTROL, value: `${PRIVATE_VALUE}, ${NO_CACHE_NO_STORE}`},
+                            {name: HEADER_SURROGATE_CONTROL, value: 'max-age=0'}
+                        ];
+                        testHeaders(res, expectedHeaders);
+                        done();
+                    });
+            });
+
+            it('should not override if nothing passed', done => {
+                app = express();
+                app.use(api.setupInitialCacheHeaders(caches));
+                createMockRoutes(app);
+                app.get('/this/is/any', api.overrideCacheHeaders(), (req, res) => {
+                    res.status(200).send('ok');
+                });
+                server = createServer(app);
+                agent = request(server);
+
+                agent.get('/this/is/any')
+                    .end((err, res) => {
+                        const expectedHeaders = [
+                            {name: HEADER_CACHE_CONTROL, value: `${NO_CACHE_NO_STORE}`},
+                            {name: HEADER_SURROGATE_CONTROL, value: 'max-age=3000'}
+                        ];
+                        testHeaders(res, expectedHeaders);
+                        done();
+                    });
+            });
             it('should allow a route to be added and override default values', done => {
                 // tests the following setup:
                 // new app()
@@ -190,14 +232,12 @@ describe('cache control index', function () {
                 // ... create different routes/controllers
                 // app.use(controllers)
                 app = express();
-                app.use(api.middleware(caches));
+                app.use(api.setupInitialCacheHeaders(caches));
                 createMockRoutes(app);
                 const overrides = {
-                    cacheSettings: {
-                        [KEY_SURROGATE_CONTROL]: 0
-                    }
+                    [KEY_SURROGATE_CONTROL]: 0
                 };
-                app.get('/this/is/any', api.middleware(overrides), (req, res) => {
+                app.get('/this/is/any', api.overrideCacheHeaders(overrides), (req, res) => {
                     res.status(200).send('ok');
                 });
                 server = createServer(app);
@@ -210,11 +250,11 @@ describe('cache control index', function () {
                         ];
                         testHeaders(res, expectedHeaders);
                     });
-                agent.get('/this/is/any')
+                agent.get('/blah/blah')
                     .end((err, res) => {
                         const expectedHeaders = [
                             {name: HEADER_CACHE_CONTROL, value: NO_CACHE_NO_STORE},
-                            {name: HEADER_SURROGATE_CONTROL, value: 'max-age=0'}
+                            {name: HEADER_SURROGATE_CONTROL, value: 'max-age=600'}
                         ];
                         testHeaders(res, expectedHeaders);
                         done();
@@ -227,16 +267,14 @@ describe('cache control index', function () {
                 {
                     route: '/root/sub',
                     middlewares: [
-                        api.middleware({
-                            cacheSettings: {
-                                maxAge: 9999999999
-                            }
+                        api.overrideCacheHeaders({
+                            maxAge: 9999999999
                         })
                     ]
                 }
             ];
             const app = express();
-            app.use(api.middleware(caches));
+            app.use(api.setupInitialCacheHeaders(caches));
             createMockRoutes(app, override);
 
             server = createServer(app);
@@ -255,7 +293,7 @@ describe('cache control index', function () {
 
         it('should set default values when nothing is passed in', (done) => {
             const app = express();
-            app.use(api.middleware());
+            app.use(api.setupInitialCacheHeaders());
             // setup only one route
             app.get('/root/sub', (req, res) => {
                 res.status(200).send('ok');
@@ -284,18 +322,14 @@ describe('cache control index', function () {
         beforeEach(function () {
             app = express();
             router = express.Router(); // eslint-disable-line new-cap
-            router.use(api.middleware(caches));
+            router.use(api.setupInitialCacheHeaders(caches));
             app.use(router);
         });
 
         describe('path object', function () {
             it('should set the default cache header if invalid object settings are passed in', function (done) {
-                router.get('/obj', api.middleware({
-                    paths: {
-                        '/obj': {
-                            notValid: 10
-                        }
-                    }
+                router.get('/obj', api.overrideCacheHeaders({
+                    notValid: 10
                 }));
                 server = createServer(app);
                 request(server).get('/obj')
@@ -311,10 +345,8 @@ describe('cache control index', function () {
         });
 
         it('sets surrogate control to the passed string if specified in route-specific config file', function (done) {
-            router.get('/root/other', api.middleware({
-                cacheSettings: {
-                    [KEY_SURROGATE_CONTROL]: 100
-                }
+            router.get('/root/other', api.overrideCacheHeaders({
+                [KEY_SURROGATE_CONTROL]: 100
             }));
             server = createServer(app);
             request(server).get('/root/other')
@@ -338,7 +370,7 @@ describe('cache control index', function () {
         it('sets the surrogate control to 600 seconds by default if no config is provided', function (done) {
             app = express();
             router = express.Router(); // eslint-disable-line new-cap
-            router.use(api.middleware(caches));
+            router.use(api.setupInitialCacheHeaders(caches));
             app.use(router);
             server = createServer(app);
             request(server).get('/')
@@ -350,10 +382,8 @@ describe('cache control index', function () {
         });
 
         it('should overwrite default cache settings', (done) => {
-            router.get('/test/subpath', api.middleware({
-                cacheSettings: {
-                    [KEY_SURROGATE_CONTROL]: "3000"
-                }
+            router.get('/test/subpath', api.overrideCacheHeaders({
+                [KEY_SURROGATE_CONTROL]: "3000"
             }));
             server = createServer(app);
             request(server).get('/test/subpath')
@@ -366,12 +396,10 @@ describe('cache control index', function () {
 
         it('sets cache control using glob negation', function (done) {
             router = express.Router(); // eslint-disable-line new-cap
-            router.use(api.middleware({
-                paths: {
-                    // any route that does NOT start with /anything
-                    // should have minimal caches
-                    '!/anything/**': false
-                }
+            router.use(api.setupInitialCacheHeaders({
+                // any route that does NOT start with /anything
+                // should have minimal caches
+                '!/anything/**': false
             }));
             app = express();
             app.use(router);
