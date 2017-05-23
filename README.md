@@ -180,12 +180,26 @@ Headers Output:
 'Last-Modified': (NOW)
 ```
 
+## Additional notes on header use / specification 
+- `Cache-Control`
+    - `private` - response intended for single user and should not be cached
+    - `no-cache, no-store, must-revalidate` - turns off browser caching
+    - `stale-while-revalidate={seconds}` - use stale version for up to `{seconds}` while re-fetching latest version background
+    - `stale-if-error={seconds}` - use stale version if re-fetch fails within `{seconds}` of response becoming stale
+- `Surrogate-Control`
+    -  takes priority over `Cache-Control`, but is stripped so browsers don't see it
+    - `max-age={seconds}` - how long the response can be considered fresh
+
+*(For more information on `Surrogate-Control`/`Cache-Control` headers read [Fastly Cache Control Tutorials](https://docs.fastly.com/guides/tutorials/cache-control-tutorial) and [W3 Specification](https://www.w3.org/TR/edge-arch/).)*
+
 ## Contributing
 All code additions and bugfixes must be accompanied by unit tests. Tests are run with jest and
 written with the node [`assert`][assert] module.
 
 ## Acknowledgement
 A portion of this code was taken from this [cache-control][cache-control] package/repo.
+
+
 
 [eslint-rules]: https://github.com/1stdibs/eslint-config-1stdibs
 [babel]: https://babeljs.io/
