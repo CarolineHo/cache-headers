@@ -8,16 +8,16 @@
 
 'use strict';
 
-import url from 'fast-url-parser';
+import url from 'url';
 import globject from 'globject';
 import slasher from 'glob-slasher';
-import isEmpty from 'lodash.isempty';
 import {
     KEY_SURROGATE_CONTROL
 } from './headerTypes';
 import { generateAllCacheHeaders } from './cacheControl';
-import { isNumberLike, isNonEmptyObject } from './utils';
+import { isNumberLike, isValidObject } from './utils';
 
+export * from './headerTypes';
 export * from './timeValues';
 
 /**
@@ -31,7 +31,7 @@ export * from './timeValues';
 function setHeader(res, headerData) {
     if (headerData.name && headerData.value) {
         res.set(headerData.name, headerData.value);
-    } else if (isNonEmptyObject(headerData)) {
+    } else {
         res.set(headerData);
     }
 }
@@ -53,41 +53,67 @@ export function setAdditionalHeaders(headers = []) {
 
 /**
  * {{@link module:cacheControl#generate}} for acceptable values
- * @memberof index
- * @param {object} [config]
- * @param {object} [config.cacheSettings=undefined] Cache settings to override the default `paths` settings
- * @param {object} [config.paths] Cache settings with glob path patterns
+ * @param {object} pathsConfig Cache settings with glob path patterns
  * @return {Function}
  */
-export function middleware(config) {
-
-    const { cacheSettings, paths } = config || {};
+export function setupInitialCacheHeaders(pathsConfig) {
+    pathsConfig = pathsConfig || {};
 
     return (req, res, next) => {
+        // current path (prefixed with a slash)
+        const pathname = slasher(url.parse(req.originalUrl).pathname);
 
-        const pathname = url.parse(req.originalUrl).pathname;
-        const cacheValues = globject(slasher(paths || {}, {value: false}));
-        let values = cacheValues(slasher(pathname));
+        /**
+         * Takes a pathname and returns the first config whose glob key matches
+         *
+         * @param pathname - pathname prefixed with slash
+         * @function
+         */
+        const getCacheConfig = globject(slasher(pathsConfig, { value: false }));
 
-        if (isNonEmptyObject(cacheSettings)) {
-            // override default cacheValue settings
-            values = generateAllCacheHeaders(cacheSettings);
-        } else if (isNonEmptyObject(values)) {
-            values = generateAllCacheHeaders(values);
-        } else if (values === false) {
-            values = generateAllCacheHeaders({
+        // options by default are set to config
+        let options = getCacheConfig(pathname);
+
+        if (options === false) {
+            // current path doesn't match any glob key in pathsConfig
+            options = {
                 [KEY_SURROGATE_CONTROL]: 0,
                 setPrivate: true
-            });
-        } else if (isNumberLike(values)) {
+            };
+        } else if (isNumberLike(options)) {
             // catch `0` before !cacheValue check
             // make sure to convert value to actual number
-            values = generateAllCacheHeaders({ [KEY_SURROGATE_CONTROL]: Number(values) });
-        } else if (!values || isEmpty(values)) {
-            values = generateAllCacheHeaders();
+            options = {
+                [KEY_SURROGATE_CONTROL]: Number(options)
+            };
         }
 
-        setHeader(res, values);
+        setHeader(res, generateAllCacheHeaders(options));
+
+        next();
+    };
+}
+
+/**
+ *
+ * {{@link module:cacheControl#generate}} for acceptable values
+ * @param {object} overrideConfig cacheSettings to override default
+ * @returns {function(*, *=, *)}
+ */
+export function overrideCacheHeaders(overrideConfig) {
+    return (req, res, next) => {
+
+        let options = overrideConfig;
+        if (overrideConfig === false) {
+            options = {
+                [KEY_SURROGATE_CONTROL]: 0,
+                setPrivate: true
+            };
+        }
+
+        if (isValidObject(options)) {
+            setHeader(res, generateAllCacheHeaders(options));
+        }
 
         next();
     };
