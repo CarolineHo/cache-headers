@@ -58,6 +58,7 @@ With the example above, the `Cache-Control` header is set as follows when a user
 - `/user/route`
     - `Cache-Control: private, no-cache, no-store, must-revalidate`
     - `Surrogate-Control: maxAge=0`
+    - `Last-Modified: (NOW)`
 - `/**` (any other route not listed)
     - `Cache-Control: no-cache, no-store, must-revalidate`
     - `Surrogate-Control: maxAge=60`
@@ -101,9 +102,9 @@ The following are acceptable keys to use if an object is passed in
 
 | key | type | description | default |
 | --- | ---- | ----------- | ------- |
-| `lastModified` | string | set `Last-Modified Header` | current date |
+| `lastModified` | string | set `Last-Modified Header` | |
 | `maxAge` | string, number | number or string representing a number for `Surrogate-Control: max-age` (forced to `0` if `setPrivate=true`) | `TEN_MINUTES` (600 seconds) |
-| `setPrivate` | boolean | should add `Cache-Control: private` (if set to `true` forces `Surrogate-Control: maxAge=0`) | false |
+| `setPrivate` | boolean | should add `Cache-Control: private` (if set to `true` forces `Surrogate-Control: maxAge=0` and `Last-Modified: (NOW)`) | false |
 | `staleError` | string, number | number or string representing a number for `Cache-Control: stale-if-error` |  |
 | `staleRevalidate` | string, number | number or string representing a number for `Cache-Control: stale-while-revalidate` |  |
 
@@ -139,9 +140,9 @@ If no options are passed in, the default value set is
 ```
 | key | type | description | default |
 | --- | ---- | ----------- | ------- |
-| `lastModified` | string | set `Last-Modified Header` | current date |
+| `lastModified` | string | set `Last-Modified Header` | |
 | `maxAge` | string, number | number or string representing a number for `Surrogate-Control: max-age` (forced to `0` if `setPrivate=true`) | `TEN_MINUTES` (600 seconds) |
-| `setPrivate` | boolean | should add `Cache-Control: private` (if set to `true` forces `Surrogate-Control: maxAge=0`) | false |
+| `setPrivate` | boolean | should add `Cache-Control: private` (if set to `true` forces `Surrogate-Control: maxAge=0` and `Last-Modified: (NOW)`) | false |
 | `staleError` | string, number | number or string representing a number for `Cache-Control: stale-if-error` |  |
 | `staleRevalidate` | string, number | number or string representing a number for `Cache-Control: stale-while-revalidate` |  |
 
@@ -166,9 +167,10 @@ Headers Output:
 Options for pages that are intended for all users and should be cached in both the browser and the server. 
 ```js
 {
-    maxAge: 'ONE_WEEK',             // cache on server
-    staleError: 'ONE_MONTH',        // cache on browser if server returns error
-    staleRevalidate: 'TEN_MINUTES'  // cache on browser for 10 min
+    maxAge: 'ONE_WEEK',                             // cache on server
+    staleError: 'ONE_MONTH',                        // cache on browser if server returns error
+    staleRevalidate: 'TEN_MINUTES',                 // cache on browser for 10 min
+    lastModified: 'Fri, 23 Jun 2017 14:35:44 GMT'   // some deployTime from a versionReport
 }
 ```
 Headers Output: 
@@ -177,7 +179,7 @@ Headers Output:
 'Surrogate-Control': 'maxAge=604800'
 'Pragma': 'no-cache'
 'Expires': 0
-'Last-Modified': (NOW)
+'Last-Modified': 'Fri, 23 Jun 2017 14:35:44 GMT'
 ```
 
 ## Additional notes on header use / specification 

@@ -135,14 +135,14 @@ function generateExpiresHeader() {
 }
 
 function generateLastModifiedHeader(options) {
-    let {lastModified = false} = options;
+    let { lastModified = false } = options;
+    const { setPrivate = false } = options;
 
-    if (!lastModified) {
+    if (setPrivate) {
         lastModified = formatDate();
     }
-    return {
-        'Last-Modified': lastModified
-    };
+
+    return lastModified ? { 'Last-Modified': lastModified } : {};
 }
 
 /**

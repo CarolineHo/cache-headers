@@ -32,8 +32,7 @@ describe('cache control', function () {
         now = formatDate(new Date('2001-01-01'));
         staticHeaders = {
             Expires: 0,
-            Pragma: 'no-cache',
-            'Last-Modified': now
+            Pragma: 'no-cache'
         };
         lastModifiedHeader = {
             [KEY_LAST_MODIFIED]: now
@@ -53,7 +52,8 @@ describe('cache control', function () {
         const actual = generateAllCacheHeaders(lastModifiedHeader);
         const expect = {
             [CACHE_CONTROL_STR]: NO_CACHE_NO_STORE,
-            [SURROGATE_CONTROL_STR]: 'max-age=600'
+            [SURROGATE_CONTROL_STR]: 'max-age=600',
+            'Last-Modified': now
         };
         headerAssertions(actual, expect);
     });
@@ -64,7 +64,8 @@ describe('cache control', function () {
         }));
         const expect = {
             [CACHE_CONTROL_STR]: `${NO_CACHE_NO_STORE}, stale-while-revalidate=200, stale-if-error=300`,
-            [SURROGATE_CONTROL_STR]: 'max-age=600'
+            [SURROGATE_CONTROL_STR]: 'max-age=600',
+            'Last-Modified': now
         };
         headerAssertions(actual, expect);
     });
@@ -75,7 +76,8 @@ describe('cache control', function () {
         }));
         const expect = {
             [CACHE_CONTROL_STR]: `${NO_CACHE_NO_STORE}, stale-while-revalidate=60, stale-if-error=10`,
-            [SURROGATE_CONTROL_STR]: 'max-age=600'
+            [SURROGATE_CONTROL_STR]: 'max-age=600',
+            'Last-Modified': now
         };
         headerAssertions(actual, expect);
     });
@@ -86,7 +88,8 @@ describe('cache control', function () {
         }));
         const expect = {
             [CACHE_CONTROL_STR]: `private, ${NO_CACHE_NO_STORE}`,
-            [SURROGATE_CONTROL_STR]: 'max-age=0'
+            [SURROGATE_CONTROL_STR]: 'max-age=0',
+            'Last-Modified': now
         };
         headerAssertions(actual, expect);
     });
@@ -97,7 +100,8 @@ describe('cache control', function () {
         }));
         const expect = {
             [CACHE_CONTROL_STR]: `${NO_CACHE_NO_STORE}, stale-while-revalidate=60, stale-if-error=604800`,
-            [SURROGATE_CONTROL_STR]: 'max-age=600'
+            [SURROGATE_CONTROL_STR]: 'max-age=600',
+            'Last-Modified': now
         };
         headerAssertions(actual, expect);
     });
@@ -108,7 +112,8 @@ describe('cache control', function () {
         }));
         const expect = {
             [CACHE_CONTROL_STR]: `${NO_CACHE_NO_STORE}, stale-while-revalidate=0, stale-if-error=0`,
-            [SURROGATE_CONTROL_STR]: 'max-age=600'
+            [SURROGATE_CONTROL_STR]: 'max-age=600',
+            'Last-Modified': now
         };
         headerAssertions(actual, expect);
     });
@@ -119,7 +124,8 @@ describe('cache control', function () {
         }));
         const expect = {
             [CACHE_CONTROL_STR]: NO_CACHE_NO_STORE,
-            [SURROGATE_CONTROL_STR]: 'max-age=600'
+            [SURROGATE_CONTROL_STR]: 'max-age=600',
+            'Last-Modified': now
         };
         headerAssertions(actual, expect);
     });
@@ -138,7 +144,8 @@ describe('cache control', function () {
                 staticHeaders,
                 {
                     [CACHE_CONTROL_STR]: NO_CACHE_NO_STORE,
-                    [SURROGATE_CONTROL_STR]: `max-age=${time}`
+                    [SURROGATE_CONTROL_STR]: `max-age=${time}`,
+                    'Last-Modified': now
                 }
             );
         }

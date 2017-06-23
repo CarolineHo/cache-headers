@@ -426,46 +426,4 @@ describe('cache control index', function () {
         });
 
     });
-
-    describe('setAdditionalHeaders', function () {
-        let app;
-        it("should set headers passed in", (done) => {
-            const additionalHeaders = [
-                {
-                    'custom-header': 'yes',
-                    'another-header': 100
-                },
-                {
-                    name: 'set-by-name',
-                    value: 'set by value'
-                }
-            ];
-
-            app = express();
-            app.use(api.setAdditionalHeaders(additionalHeaders));
-            createMockRoutes(app);
-            server = createServer(app);
-            request(server).get('/')
-                .end((err, res) => {
-                    const expectedHeaders = [
-                        {name: 'custom-header', value: 'yes'},
-                        {name: 'another-header', value: '100'},
-                        {name: 'set-by-name', value: 'set by value'}
-                    ];
-                    testHeaders(res, expectedHeaders);
-                    done();
-                });
-        });
-        it('should use the default empty array when nothing is passed in', (done) => {
-            app = express();
-            app.use(api.setAdditionalHeaders());
-            server = createServer(app);
-            request(server).get('/')
-                .end((err, res) => {
-                    const expectedHeaders = [];
-                    testHeaders(res, expectedHeaders);
-                    done();
-                });
-        });
-    });
 });

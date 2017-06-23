@@ -25,30 +25,9 @@ export * from './timeValues';
  * {{@link http://expressjs.com/en/api.html#res.set}}
  * @param {object} res The current response object
  * @param {object} headerData
- * @param {string} [headerData.name] The response header to use
- * @param {string} [headerData.value] The corresponding response header value
  */
 function setHeader(res, headerData) {
-    if (headerData.name && headerData.value) {
-        res.set(headerData.name, headerData.value);
-    } else {
-        res.set(headerData);
-    }
-}
-
-/**
- * @param {object<array>} headers
- * @param {string} headers[].name The header name
- * @param {string} headers[].value The header value
- * @returns {function(*, *=, *)}
- */
-export function setAdditionalHeaders(headers = []) {
-    return (req, res, next) => {
-        if (Array.isArray(headers) && headers.length) {
-            headers.map(headerData => setHeader(res, headerData));
-        }
-        next();
-    };
+    res.set(headerData);
 }
 
 /**
